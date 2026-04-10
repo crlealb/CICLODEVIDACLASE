@@ -1,0 +1,22 @@
+name: Build and Test
+
+jobs:
+  build_test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout del Código
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configurar Node.js ${{ inputs.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Instalar Dependencias
+        run: npm ci
+      
+      - name: 🔒 Verificar Compliance
+        run: npm audit
+
+      - name: 🧪 Ejecutar Pruebas Automatizadas (Unidad/Integración)
+        run: npm test
