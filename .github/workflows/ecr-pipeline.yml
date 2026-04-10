@@ -1,63 +1,60 @@
-name: Pipeline Optimizado ECR
+name: ECR Build & Push
 
 on:
   push:
-    branches: [ "develop", "main" ] # Adaptación de Triggers (Punto 1)
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - master
+  release:
+    types: [published]
 
 jobs:
-  CI-Validation:
+  build-and-push:
+    name: Build, Tag and Push to ECR
     runs-on: ubuntu-latest
+    
+    # 💡 Definimos las variables de entorno del job, extrayendo sus valores 
+    # del contexto 'vars' de GitHub (Variables de Repositorio/Entorno).
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+
     steps:
-      - name: Checkout del código
+      # 1. Checkout del código
+      - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Configurar Node.js v20 con Caché
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm' # Optimización: Implementación A (Punto 5.2)
-
-      - name: Instalar Dependencias
-        run: npm ci
-
-      - name: Pruebas Unitarias
-        run: npm test
-
-  CI-Docker-ECR:
-    # Adaptación de Condicionales (Punto 2)
-    # Solo sube a ECR si es un push (no en pull requests)
-    if: github.event_name == 'push' 
-    needs: CI-Validation
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+        
+      # 2. Configurar credenciales de AWS
+      # Las credenciales (Secrets) se usan para autenticación. La región se toma de env.
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }} 
 
-      - name: Login to ECR
+      # 3. Login en ECR
+      - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build and Push con Registry Cache
+        
+      # 4. Definir variables y construir la imagen
+      - name: Build, tag, and push image to ECR
+        id: build-image
         env:
+          # ECR_REGISTRY se sigue obteniendo de la acción de login
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: clase1
-          IMAGE_TAG: ${{ github.sha }}
+          IMAGE_TAG: ${{ github.sha }} # Usamos el SHA del commit como tag
         run: |
-          # Optimización: Implementación B (Punto 5.3)
-          # Usamos --cache-from para reutilizar capas existentes en ECR
-          docker buildx build \
-            --cache-from=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:latest \
-            --cache-to=type=inline \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
-            --push .
+          # 4.1. Construir la imagen local
+          # $ECR_REPOSITORY se resuelve a partir del bloque 'env' del job.
+          docker build -t $ECR_REPOSITORY:$IMAGE_TAG .
+          
+          # 4.2. Etiquetar la imagen con la URI completa de ECR
+          docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
+          # 4.3. Empujar la imagen a ECR
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
+          echo "La imagen $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ha sido publicada."
