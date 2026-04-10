@@ -1,11 +1,10 @@
-name: ECR Build & Push
+name: Pipeline Optimizado ECR
 
 on:
   push:
-    branches:
-      - develop
-  release:
-    types: [published]
+    branches: [ "main", "develop" ]  # <--- Esto es lo que falta o está mal
+  pull_request:
+    branches: [ "main" ]
 
 jobs:
   build-and-push:
