@@ -16,7 +16,7 @@ jobs:
     # 💡 Definimos las variables de entorno del job, extrayendo sus valores 
     # del contexto 'vars' de GitHub (Variables de Repositorio/Entorno).
     env:
-      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_REGION: us-east-1
       ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
       AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
 
