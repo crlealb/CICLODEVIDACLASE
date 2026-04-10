@@ -45,6 +45,7 @@ jobs:
         env:
           # ECR_REGISTRY se sigue obteniendo de la acción de login
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: clase1
           IMAGE_TAG: ${{ github.sha }} # Usamos el SHA del commit como tag
         run: |
           # 4.1. Construir la imagen local
